@@ -1,0 +1,12 @@
+This is my attempt at creating maven project object models for calabash.
+
+TODO List
+
+-Integrate nu.htmlparser as a maven dependency
+I will probably either create project object models for nu.htmlparser or upload it as a static release to a maven repoistory
+
+-Remove extensions package for core
+For now this will suffice in the case of dealing with extension code that may use projects with stricter
+
+-Create a artifact friendly way of re-introducing extensions
+This might involve simply replicating what the ant build does by removing certain source files
