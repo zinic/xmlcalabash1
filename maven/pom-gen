@@ -5,12 +5,14 @@
 # out of Calabash's source.
 
 # Configuration Variables
-[ -z "${POM_SOURCES}" ] && POM_SOURCES="./maven-sources"
+[ -z "${WORKING_DIR}" ] && WORKING_DIR="$(dirname $0)"
 
-[ -z "${CALABASH_ROOT}" ] && CALABASH_ROOT=".."
-[ -z "${TARGET_DIR}" ] && TARGET_DIR="./calabash-maven"
+[ -z "${POM_SOURCES}" ] && POM_SOURCES="${WORKING_DIR}/maven-sources"
 
-[ -z "${EXCLUSIONS_FILE}" ] && EXCLUSIONS_FILE="./exclusions"
+[ -z "${CALABASH_ROOT}" ] && CALABASH_ROOT="${WORKING_DIR}/.."
+[ -z "${TARGET_DIR}" ] && TARGET_DIR="${WORKING_DIR}/calabash-maven"
+
+[ -z "${EXCLUSIONS_FILE}" ] && EXCLUSIONS_FILE="${WORKING_DIR}/exclusions"
 
 # Constants
 CORE="/core"
@@ -53,19 +55,37 @@ function cleanAll {
 }
 
 function printUsage {
-   echo "Usage: generate-project.sh [clean]"
+   echo "Usage: pom-gen <clean|generate>"
    exit 1;
 }
 
-if [ $# -eq 1 ]; then
-   if [ "$1" == "clean" ]; then
-      cleanAll
-   else
-      printUsage
-   fi
-else
-   createDirectories
-   copyMavenModels
-   copyCalabashProject
-   processExclusions
+
+# SCRIPT BEGIN
+
+if [ ${#} -lt 1 ]; then
+   printUsage
 fi
+
+while [ "${1}" != "" ]; do
+   currentArgument="${1}";
+   shift;
+
+   case "${currentArgument}" in
+      generate)
+         createDirectories
+         copyMavenModels
+         copyCalabashProject
+         processExclusions
+      ;;
+
+      clean)
+         cleanAll
+      ;;  
+
+      *)  
+         printUsage
+      ;;  
+   esac
+done
+
+exit 0;
