@@ -38,6 +38,11 @@
         </dependency>
 
         <dependency>
+            <groupId>nu.validator.htmlparser</groupId>
+            <artifactId>htmlparser</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>isorelax</groupId>
             <artifactId>isorelax</artifactId>
         </dependency>

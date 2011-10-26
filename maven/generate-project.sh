@@ -10,6 +10,8 @@
 [ -z "${CALABASH_ROOT}" ] && CALABASH_ROOT=".."
 [ -z "${TARGET_DIR}" ] && TARGET_DIR="./calabash-maven"
 
+[ -z "${EXCLUSIONS_FILE}" ] && EXCLUSIONS_FILE="./exclusions"
+
 # Constants
 CORE="/core"
 
@@ -38,6 +40,14 @@ function copyCalabashProject {
    cp -r "${CALABASH_ROOT}/test/com" "${TARGET_DIR}${CORE}${MVN_TEST_JAVA}"
 }
 
+function processExclusions {
+   if [ -e "${EXCLUSIONS_FILE}" ]; then
+      while read exclusion; do
+         rm -v "${TARGET_DIR}${CORE}${MVN_MAIN_JAVA}${exclusion}" > /dev/null 2>&1
+      done < "${EXCLUSIONS_FILE}"
+   fi
+}
+
 function cleanAll {
    rm -rf "${TARGET_DIR}"
 }
@@ -57,4 +67,5 @@ else
    createDirectories
    copyMavenModels
    copyCalabashProject
+   processExclusions
 fi

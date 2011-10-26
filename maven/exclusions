@@ -1,0 +1,11 @@
+/com/xmlcalabash/extensions/MetadataExtractor.java
+/com/xmlcalabash/extensions/DeltaXML.java
+/com/xmlcalabash/extensions/xmlunit/Compare.java
+/com/xmlcalabash/extensions/marklogic/XCCAdhocQuery.java
+/com/xmlcalabash/extensions/marklogic/XCCInsertDocument.java
+/com/xmlcalabash/extensions/marklogic/XCCInvokeModule.java
+/com/xmlcalabash/util/FoXEP.java
+/com/xmlcalabash/util/FoFOP.java
+/com/xmlcalabash/util/FoAH.java
+/com/xmlcalabash/util/CssAH.java
+/com/xmlcalabash/drivers/SaxonProblem.java
