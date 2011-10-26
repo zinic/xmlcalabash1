@@ -5,8 +5,9 @@
 # out of Calabash's source.
 
 # Configuration Variables
-[ -z "${WORKING_DIR}" ] && WORKING_DIR="$(dirname $0)"
+[ -z "${BE_VERBOSE}" ] && BE_VERBOSE=false
 
+[ -z "${WORKING_DIR}" ] && WORKING_DIR="$(dirname $0)"
 [ -z "${POM_SOURCES}" ] && POM_SOURCES="${WORKING_DIR}/maven-sources"
 
 [ -z "${CALABASH_ROOT}" ] && CALABASH_ROOT="${WORKING_DIR}/.."

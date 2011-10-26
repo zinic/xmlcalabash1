@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.xmlcalabash</groupId>
         <artifactId>parent</artifactId>
-        <version>0.9.37.maven</version>
+        <version>0.9.38</version>
     </parent>
 
     <groupId>com.xmlcalabash</groupId>
