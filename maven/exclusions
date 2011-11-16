@@ -4,6 +4,7 @@
 /com/xmlcalabash/extensions/marklogic/XCCAdhocQuery.java
 /com/xmlcalabash/extensions/marklogic/XCCInsertDocument.java
 /com/xmlcalabash/extensions/marklogic/XCCInvokeModule.java
+/com/xmlcalabash/extensions/SendMail.java
 /com/xmlcalabash/util/FoXEP.java
 /com/xmlcalabash/util/FoFOP.java
 /com/xmlcalabash/util/FoAH.java
