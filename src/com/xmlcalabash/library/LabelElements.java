@@ -100,6 +100,11 @@ public class LabelElements extends DefaultStep implements ProcessMatchingNodes {
         if (attrNameStr.contains(":")) {
             attribute = new QName(attrNameStr, attrNameValue.getNode());
         } else {
+            // For Saxon 9.4, make sure there's some sort of prefix if there's a namespace;
+            // Saxon will take care of resolving collisions, if necessary
+            if (apfx == null && ans != null) {
+                apfx = "_1";
+            }
             attribute = new QName(apfx == null ? "" : apfx, ans, attrNameStr);
         }
 
@@ -168,6 +173,7 @@ public class LabelElements extends DefaultStep implements ProcessMatchingNodes {
 
     private String computedLabel(XdmNode node) throws SaxonApiException {
         XPathCompiler xcomp = runtime.getProcessor().newXPathCompiler();
+        xcomp.setBaseURI(step.getNode().getBaseURI());
 
         // Make sure any namespace bindings in-scope for the label are available for the expression
         for (String prefix : label.getNamespaceBindings().keySet()) {

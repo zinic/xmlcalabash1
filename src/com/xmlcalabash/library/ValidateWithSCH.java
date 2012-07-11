@@ -1,5 +1,6 @@
 package com.xmlcalabash.library;
 
+import net.sf.saxon.om.StandardNames;
 import net.sf.saxon.s9api.*;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.sxpath.IndependentContext;
@@ -43,6 +44,7 @@ public class ValidateWithSCH extends DefaultStep {
     private WritablePipe resultPipe = null;
     private WritablePipe reportPipe = null;
     private Hashtable<QName,RuntimeValue> params = new Hashtable<QName,RuntimeValue> ();
+    private boolean schemaAware = false;
 
 
     /** Creates a new instance of ValidateWithXSD */
@@ -80,6 +82,13 @@ public class ValidateWithSCH extends DefaultStep {
     public void run() throws SaxonApiException {
         super.run();
 
+        XdmNode sourceXML = source.read();
+
+        // If we're dealing with a typed document, we must compile the XSLT in schema-aware mode
+        schemaAware = (sourceXML.getUnderlyingNode().getTypeAnnotation() != StandardNames.XS_UNTYPED);
+
+        XdmNode schemaXML = schema.read();
+
         XsltCompiler compiler;
         XsltExecutable exec;
         XdmDestination result;
@@ -95,7 +104,7 @@ public class ValidateWithSCH extends DefaultStep {
 
         // It would be nice to load these stylesheets only once, but sometimes (i.e. from RunTest),
         // there are different controllers involved and you can't do that.
-        XdmNode theSchema1_sch = transform(schema.read(), getSchematronXSLT("iso_dsdl_include.xsl"));
+        XdmNode theSchema1_sch = transform(schemaXML, getSchematronXSLT("iso_dsdl_include.xsl"));
         XdmNode theSchema2_sch = transform(theSchema1_sch, getSchematronXSLT("iso_abstract_expand.xsl"));
 
         skeleton = getClass().getResourceAsStream("/etc/schematron/iso_schematron_skeleton_for_saxon.xsl");
@@ -104,6 +113,7 @@ public class ValidateWithSCH extends DefaultStep {
         }
 
         compiler = runtime.getProcessor().newXsltCompiler();
+        compiler.setSchemaAware(schemaAware);
         compiler.setURIResolver(new UResolver());
         exec = compiler.compile(getSchematronXSLT("iso_svrl_for_xslt2.xsl"));
         XsltTransformer schemaCompiler = exec.load();
@@ -127,12 +137,18 @@ public class ValidateWithSCH extends DefaultStep {
         schemaCompiler.transform();
 
         XdmNode compiledSchema = result.getXdmNode();
+        XdmNode compiledRoot = S9apiUtils.getDocumentElement(compiledSchema);
+        
+        if (compiledRoot == null) {
+            XdmNode schemaRoot = S9apiUtils.getDocumentElement(schemaXML);
+            String root = schemaRoot == null ? "null" : schemaRoot.getNodeName().toString();
+            throw new XProcException("p:validate-with-schematron failed to compile provided schema: " + root);
+        }
 
         XsltTransformer transformer;
 
-        XdmNode sourceXML = source.read();
-
         compiler = runtime.getProcessor().newXsltCompiler();
+        compiler.setSchemaAware(schemaAware);
         exec = compiler.compile(new SAXSource(S9apiUtils.xdmToInputSource(runtime, compiledSchema)));
         transformer = exec.load();
         transformer.setInitialContextNode(sourceXML);
@@ -162,6 +178,7 @@ public class ValidateWithSCH extends DefaultStep {
 
         try {
             XPathCompiler xcomp = runtime.getProcessor().newXPathCompiler();
+            xcomp.setBaseURI(step.getNode().getBaseURI());
 
             for (String prefix : nsBindings.keySet()) {
                 xcomp.declareNamespace(prefix, nsBindings.get(prefix));
@@ -217,7 +234,7 @@ public class ValidateWithSCH extends DefaultStep {
     private SAXSource getSchematronXSLT(String xslt) {
         InputStream instream = getClass().getResourceAsStream("/etc/schematron/" + xslt);
         if (instream == null) {
-            throw new UnsupportedOperationException("Failed to load iso_svrl.xsl from JAR file.");
+            throw new UnsupportedOperationException("Failed to load " + xslt + " from JAR file.");
         }
 
         return new SAXSource(new InputSource(instream));
@@ -225,6 +242,7 @@ public class ValidateWithSCH extends DefaultStep {
 
     private XdmNode transform(XdmNode source, SAXSource stylesheet) throws SaxonApiException {
         XsltCompiler compiler = runtime.getProcessor().newXsltCompiler();
+        compiler.setSchemaAware(schemaAware);
         compiler.setURIResolver(new UResolver());
         XsltExecutable exec = compiler.compile(stylesheet);
         XsltTransformer schemaCompiler = exec.load();

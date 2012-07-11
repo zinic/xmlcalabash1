@@ -90,12 +90,34 @@ public class Main {
             usage();
         }
 
+        if (cmd.showVersion) {
+            showVersion();
+            System.exit(0);
+        }
+        
+        if (cmd.saxonConfigFile != null) {
+            if (cmd.schemaAware) {
+                throw new XProcException("Specifying schema-aware processing is an error if you specify a Saxon configuration file.");
+            }
+            if (cmd.saxonProcessor != null) {
+                throw new XProcException("Specifying a processor type is an error if you specify a Saxon configuration file.");
+            }
+        }
+
         try {
             XProcConfiguration config = null;
 
+            // Blech
             try {
+                String proc = cmd.saxonProcessor;
                 if (cmd.schemaAware) {
-                    config = new XProcConfiguration(cmd.schemaAware);
+                    proc = "ee";
+                }
+
+                if (cmd.saxonConfigFile != null) {
+                    config = new XProcConfiguration(cmd.saxonConfigFile);
+                } else if (proc != null) {
+                    config = new XProcConfiguration(proc, cmd.schemaAware);
                 } else {
                     config = new XProcConfiguration();
                 }
@@ -405,11 +427,15 @@ public class Main {
         }
     }
 
-    private void usage() throws IOException {
+    private void showVersion() {
         System.out.println("XML Calabash version " + XProcConstants.XPROC_VERSION + ", an XProc processor");
-        System.out.println("Copyright (c) 2007-2011 Norman Walsh");
+        System.out.println("Copyright (c) 2007-2012 Norman Walsh");
         System.out.println("See http://xmlcalabash.com/");
         System.out.println("");
+    }
+    
+    private void usage() throws IOException {
+        showVersion();
 
         InputStream instream = getClass().getResourceAsStream("/etc/usage.txt");
         if (instream == null) {

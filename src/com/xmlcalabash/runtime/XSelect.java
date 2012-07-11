@@ -70,6 +70,10 @@ public class XSelect implements ReadablePipe {
     public void canReadSequence(boolean sequence) {
         // nop; always true
     }
+
+    public boolean readSequence() {
+        return true;
+    }
     
     private void readSource() {
         initialized = true;
@@ -77,6 +81,8 @@ public class XSelect implements ReadablePipe {
         try {
             NamespaceBinding bindings = new NamespaceBinding(runtime,context);
             XPathCompiler xcomp = runtime.getProcessor().newXPathCompiler();
+            xcomp.setBaseURI(context.getBaseURI());
+
             IndependentContext icontext = (IndependentContext) xcomp.getUnderlyingStaticContext();
 
             Hashtable<QName, RuntimeValue> inScopeOptions = new Hashtable<QName, RuntimeValue> ();

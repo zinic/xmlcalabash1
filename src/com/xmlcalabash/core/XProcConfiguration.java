@@ -10,13 +10,11 @@ import net.sf.saxon.s9api.XdmDestination;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmNodeKind;
 import net.sf.saxon.s9api.XdmValue;
-import net.sf.saxon.tree.iter.NamespaceIterator;
 import net.sf.saxon.value.Whitespace;
-import net.sf.saxon.om.NodeInfo;
-import net.sf.saxon.om.NamePool;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.Hashtable;
-import java.util.Properties;
 import java.util.Vector;
 import java.util.HashSet;
 import java.util.logging.Level;
@@ -60,7 +58,9 @@ public class XProcConfiguration {
     public static final QName _value = new QName("", "value");
     public static final QName _exclude_inline_prefixes = new QName("", "exclude-inline-prefixes");
 
+    public String saxonProcessor = "he";
     public boolean schemaAware = false;
+    public String saxonConfigFile = null;
     public Hashtable<String,String> nsBindings = new Hashtable<String,String> ();
     public boolean debug = false;
     public Hashtable<String,Vector<ReadablePipe>> inputs = new Hashtable<String,Vector<ReadablePipe>> ();
@@ -97,10 +97,12 @@ public class XProcConfiguration {
     private boolean firstOutput = false;
 
     public XProcConfiguration() {
+        init("he", false, null);
+/*        
         cfgProcessor = new Processor(false);
         loadConfiguration();
 
-        if (schemaAware) {
+        if (schemaAware || !"he".equals(saxonProcessor) || saxonConfigFile != null) {
             // Bugger. We have to restart with a schema-aware processor
             nsBindings.clear();
             inputs.clear();
@@ -111,25 +113,28 @@ public class XProcConfiguration {
             extensionFunctions.clear();
 
             cfgProcessor = new Processor(true);
+
+            String actualtype = cfgProcessor.getUnderlyingConfiguration().softwareEdition;
+            if (!"he".equals(saxonProcessor) && (!actualtype.toLowerCase().equals(saxonProcessor))) {
+                System.err.println("Failed to obtain " + saxonProcessor.toUpperCase() + " processor; using " + actualtype + " instead.");
+            }
+
             loadConfiguration();
         }
+*/        
     }
 
+    // This constructor is historical, the (String, boolean) constructor is preferred
     public XProcConfiguration(boolean schemaAware) {
-        cfgProcessor = new Processor(schemaAware);
-        boolean sa = cfgProcessor.isSchemaAware();
+        init("he", schemaAware, null);
+    }
 
-        /*
-        Properties prop = System.getProperties();
-        System.err.println(prop.getProperty("java.class.path", null));
-        System.err.println(cfgProcessor.getUnderlyingConfiguration().getClass().getName());
-        */
+    public XProcConfiguration(String saxoncfg) {
+        init(null, false, saxoncfg);
+    }
 
-        if (schemaAware && !sa) {
-            System.err.println("Failed to obtain schema-aware processor.");
-        }
-
-        loadConfiguration();
+    public XProcConfiguration(String proctype, boolean schemaAware) {
+        init(proctype, schemaAware, null);
     }
 
     public XProcConfiguration(Processor processor) {
@@ -144,6 +149,63 @@ public class XProcConfiguration {
         return cfgProcessor;
     }
 
+    private void init(String proctype, boolean schemaAware, String saxoncfg) {
+        if (schemaAware) {
+            proctype = "ee";
+        }
+
+        createSaxonProcessor(proctype, schemaAware, saxoncfg);
+        loadConfiguration();
+
+        // If we got a schema aware processor, make sure it's reflected in our config
+        // FIXME: are there other things that should be reflected this way?
+        this.schemaAware = cfgProcessor.isSchemaAware();
+        this.saxonProcessor = cfgProcessor.getUnderlyingConfiguration().softwareEdition.toLowerCase();
+
+        if (!(proctype == null || saxonProcessor.equals(proctype)) || schemaAware != this.schemaAware ||
+            (saxoncfg == null && saxonConfigFile != null)) {
+            // Drat. We have to restart to get the right configuration.
+            nsBindings.clear();
+            inputs.clear();
+            outputs.clear();
+            params.clear();
+            options.clear();
+            implementations.clear();
+            extensionFunctions.clear();
+            
+            createSaxonProcessor(saxonProcessor, this.schemaAware, saxonConfigFile);
+            loadConfiguration();
+
+            // If we got a schema aware processor, make sure it's reflected in our config
+            // FIXME: are there other things that should be reflected this way?
+            this.schemaAware = cfgProcessor.isSchemaAware();
+            this.saxonProcessor = cfgProcessor.getUnderlyingConfiguration().softwareEdition.toLowerCase();
+        }
+    }
+
+    private void createSaxonProcessor(String proctype, boolean schemaAware, String saxoncfg) {
+        boolean licensed = schemaAware || !"he".equals(proctype);
+
+        if (saxoncfg != null) {
+            try {
+                InputStream instream = new FileInputStream(saxoncfg);
+                SAXSource source = new SAXSource(new InputSource(instream));
+                cfgProcessor = new Processor(source);
+            } catch (FileNotFoundException e) {
+                throw new XProcException(e);
+            } catch (SaxonApiException e) {
+                throw new XProcException(e);
+            }
+        } else {
+            cfgProcessor = new Processor(licensed);
+        }
+
+        String actualtype = cfgProcessor.getUnderlyingConfiguration().softwareEdition;
+        if ((proctype != null) && !"he".equals(proctype) && (!actualtype.toLowerCase().equals(proctype))) {
+            System.err.println("Failed to obtain " + proctype.toUpperCase() + " processor; using " + actualtype + " instead.");
+        }
+    }
+    
     private void loadConfiguration() {
         URI home = URIUtils.homeAsURI();
         URI cwd = URIUtils.cwdAsURI();
@@ -190,6 +252,14 @@ public class XProcConfiguration {
         }
 
         // What about properties?
+        saxonProcessor = System.getProperty("com.xmlcalabash.saxon-processor", saxonProcessor);
+
+        if ( !("he".equals(saxonProcessor) || "pe".equals(saxonProcessor) || "ee".equals(saxonProcessor)) ) {
+            throw new XProcException("Invalid Saxon processor specified in com.xmlcalabash.saxon-processor property.");
+        }
+
+        saxonConfigFile = System.getProperty("com.xmlcalabash.saxon-configuration", saxonConfigFile);
+
         schemaAware = "true".equals(System.getProperty("com.xmlcalabash.schema-aware", ""+schemaAware));
         debug = "true".equals(System.getProperty("com.xmlcalabash.debug", ""+debug));
         extensionValues = "true".equals(System.getProperty("com.xmlcalabash.general-values", ""+extensionValues));
@@ -271,6 +341,10 @@ public class XProcConfiguration {
                     || XProcConstants.NS_EXPROC_CONFIG.equals(uri)) {
                 if ("implementation".equals(localName)) {
                     parseImplementation(node);
+                } else if ("saxon-processor".equals(localName)) {
+                    parseSaxonProcessor(node);
+                } else if ("saxon-configuration".equals(localName)) {
+                    parseSaxonConfiguration(node);
                 } else if ("schema-aware".equals(localName)) {
                     parseSchemaAware(node);
                 } else if ("namespace-binding".equals(localName)) {
@@ -357,6 +431,21 @@ public class XProcConfiguration {
 		} catch (InvocationTargetException ite) {
 			throw new UnsupportedOperationException("Invocation target exception", ite);
         }
+    }
+
+    private void parseSaxonProcessor(XdmNode node) {
+        String value = node.getStringValue().trim();
+
+        if ( !("he".equals(value) || "pe".equals(value) || "ee".equals(value)) ) {
+            throw new XProcException(node, "Invalid Saxon processor: " + value + ". Must be 'he', 'pe', or 'ee'.");
+        }
+
+        saxonProcessor = value;
+    }
+
+    private void parseSaxonConfiguration(XdmNode node) {
+        String value = node.getStringValue().trim();
+        saxonConfigFile = value;
     }
 
     private void parseSchemaAware(XdmNode node) {
@@ -530,42 +619,9 @@ public class XProcConfiguration {
 
             documents.add(new ConfigDocument(href, node.getBaseURI().toASCIIString()));
         } else {
-            HashSet<String> excludeURIs = readExcludeInlinePrefixes(node, node.getAttributeValue(_exclude_inline_prefixes));
+            HashSet<String> excludeURIs = S9apiUtils.excludeInlinePrefixes(node, node.getAttributeValue(_exclude_inline_prefixes));
             documents.add(new ConfigDocument(docnodes, excludeURIs));
         }
-    }
-
-    private HashSet<String> readExcludeInlinePrefixes(XdmNode node, String prefixList) {
-        HashSet<String> excludeURIs = new HashSet<String> ();
-        excludeURIs.add(XProcConstants.NS_XPROC);
-
-        if (prefixList != null) {
-            // FIXME: Surely there's a better way to do this?
-            NodeInfo inode = node.getUnderlyingNode();
-            NamePool pool = inode.getNamePool();
-            int inscopeNS[] = NamespaceIterator.getInScopeNamespaceCodes(inode);
-
-            for (String pfx : prefixList.split("\\s+")) {
-                boolean found = false;
-
-                for (int pos = 0; pos < inscopeNS.length; pos++) {
-                    int ns = inscopeNS[pos];
-                    String nspfx = pool.getPrefixFromNamespaceCode(ns);
-                    String nsuri = pool.getURIFromNamespaceCode(ns);
-
-                    if (pfx.equals(nspfx)) {
-                        found = true;
-                        excludeURIs.add(nsuri);
-                    }
-                }
-
-                if (!found) {
-                    throw new XProcException(XProcConstants.staticError(57), "No binding for '" + pfx + ":'");
-                }
-            }
-        }
-
-        return excludeURIs;
     }
 
     private void parsePipeline(XdmNode node) {
@@ -589,7 +645,7 @@ public class XProcConfiguration {
             }
             pipeline = new ConfigDocument(href, node.getBaseURI().toASCIIString());
         } else {
-            HashSet<String> excludeURIs = readExcludeInlinePrefixes(node, node.getAttributeValue(_exclude_inline_prefixes));
+            HashSet<String> excludeURIs = S9apiUtils.excludeInlinePrefixes(node, node.getAttributeValue(_exclude_inline_prefixes));
             pipeline = new ConfigDocument(docnodes, excludeURIs);
         }
     }
@@ -796,6 +852,10 @@ public class XProcConfiguration {
             // nop; always false
         }
 
+        public boolean readSequence() {
+            return false;
+        }
+
         public XdmNode read() throws SaxonApiException {
             read = true;
 
@@ -817,7 +877,7 @@ public class XProcConfiguration {
                     S9apiUtils.writeXdmValue(cfgProcessor, nodes, dest, node.getBaseURI());
                     doc = dest.getXdmNode();
                     if (excludeUris.size() != 0) {
-                        doc = S9apiUtils.removeNamespaces(cfgProcessor, doc, excludeUris);
+                        doc = S9apiUtils.removeNamespaces(cfgProcessor, doc, excludeUris, true);
                     }
                 } catch (SaxonApiException sae) {
                     throw new XProcException(sae);

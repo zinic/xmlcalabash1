@@ -23,8 +23,8 @@ import com.xmlcalabash.core.XProcRuntime;
 
 public class SystemProperty extends ExtensionFunctionDefinition {
     private static StructuredQName funcname = new StructuredQName("p", XProcConstants.NS_XPROC, "system-property");
-    private ThreadLocal tl_runtime = new ThreadLocal() {
-        protected synchronized Object initialValue() {
+    private ThreadLocal<XProcRuntime> tl_runtime = new ThreadLocal<XProcRuntime>() {
+        protected synchronized XProcRuntime initialValue() {
             return null;
         }
     };
@@ -71,7 +71,7 @@ public class SystemProperty extends ExtensionFunctionDefinition {
          public SequenceIterator call(SequenceIterator[] arguments, XPathContext context) throws XPathException {
              StructuredQName propertyName = null;
 
-             XProcRuntime runtime = (XProcRuntime) tl_runtime.get();
+             XProcRuntime runtime = tl_runtime.get();
              XStep step = runtime.getXProcData().getStep();
              // FIXME: this can't be the best way to do this...
              // FIXME: And what, exactly, is this even supposed to be doing!?
@@ -95,8 +95,8 @@ public class SystemProperty extends ExtensionFunctionDefinition {
                  throw e;
              }
 
-             String uri = propertyName.getNamespaceURI();
-             String local = propertyName.getLocalName();
+             String uri = propertyName.getURI();
+             String local = propertyName.getLocalPart();
              String value = "";
 
              if (uri.equals(XProcConstants.NS_XPROC)) {
@@ -128,6 +128,10 @@ public class SystemProperty extends ExtensionFunctionDefinition {
                      value = runtime.getAllowGeneralExpressions() ? "true" : "false";
                  } else if ("xpointer-on-text".equals(local)) {
                      value = runtime.getAllowXPointerOnText() ? "true" : "false";
+                 } else if ("saxon-version".equals(local)) {
+                     value = runtime.getConfiguration().getProcessor().getSaxonProductVersion();
+                 } else if ("saxon-edition".equals(local)) {
+                     value = runtime.getConfiguration().saxonProcessor;
                  }
              }
 

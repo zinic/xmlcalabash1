@@ -62,12 +62,17 @@ public class Select implements ReadablePipe {
     public void canReadSequence(boolean sequence) {
         // nop; always true
     }
+
+    public boolean readSequence() {
+        return true;
+    }
     
     private void readSource() {
         initialized = true;
         try {
             NamespaceBinding bindings = new NamespaceBinding(runtime,context);
             XPathCompiler xcomp = runtime.getProcessor().newXPathCompiler();
+            xcomp.setBaseURI(context.getBaseURI());
             for (String prefix : bindings.getNamespaceBindings().keySet()) {
                 xcomp.declareNamespace(prefix, bindings.getNamespaceBindings().get(prefix));
             }

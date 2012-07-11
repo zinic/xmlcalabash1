@@ -24,7 +24,7 @@ import java.net.URI;
  */
 public class StepErrorListener implements ErrorListener {
     private static QName c_error = new QName(XProcConstants.NS_XPROC_STEP, "error");
-    private static QName _name = new QName("", "name");
+    private static StructuredQName err_sxxp0003 = new StructuredQName("err", "http://www.w3.org/2005/xqt-errors", "SXXP0003");
     private static QName _type = new QName("", "type");
     private static QName _href = new QName("", "href");
     private static QName _line = new QName("", "line");
@@ -60,17 +60,35 @@ public class StepErrorListener implements ErrorListener {
     }
 
     private boolean report(String type, TransformerException exception) {
+        // HACK!!!
+        if (runtime.transparentJSON() && exception instanceof XPathException) {
+            XPathException e = (XPathException) exception;
+            if (e.getErrorCodeQName().equals(err_sxxp0003)) {
+                // We'll be trying again as JSON, so let it go this time
+                return true;
+            }
+        }
+        
         TreeWriter writer = new TreeWriter(runtime);
 
         writer.startDocument(baseURI);
         writer.addStartElement(c_error);
         writer.addAttribute(_type, type);
 
+        String message = exception.toString();
         StructuredQName qCode = null;
         if (exception instanceof XPathException) {
             XPathException xxx = (XPathException) exception;
             qCode = xxx.getErrorCodeQName();
-            //qCode = ((XPathException) exception).getErrorCodeQName();
+
+            Throwable underlying = exception.getException();
+            if (underlying == null) {
+                underlying = exception.getCause();
+            }
+
+            if (underlying != null) {
+                message = underlying.toString();
+            }
         }
         if (qCode == null && exception.getException() instanceof XPathException) {
             qCode = ((XPathException) exception.getException()).getErrorCodeQName();
@@ -111,7 +129,7 @@ public class StepErrorListener implements ErrorListener {
 
 
         writer.startContent();
-        writer.addText(exception.toString());
+        writer.addText(message);
         writer.addEndElement();
         writer.endDocument();
 

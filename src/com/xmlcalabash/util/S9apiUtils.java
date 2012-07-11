@@ -20,9 +20,9 @@
 
 package com.xmlcalabash.util;
 
-import net.sf.saxon.om.NodeInfo;
-import net.sf.saxon.om.Item;
-import net.sf.saxon.om.NamePool;
+import com.xmlcalabash.core.XProcConstants;
+import com.xmlcalabash.core.XProcException;
+import net.sf.saxon.om.*;
 import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.Destination;
 import net.sf.saxon.s9api.Processor;
@@ -48,7 +48,6 @@ import net.sf.saxon.event.NamespaceReducer;
 import net.sf.saxon.event.PipelineConfiguration;
 import net.sf.saxon.Configuration;
 import com.xmlcalabash.core.XProcRuntime;
-
 import java.util.Iterator;
 import java.util.Vector;
 import java.util.HashSet;
@@ -56,7 +55,7 @@ import java.net.URI;
 import java.io.StringWriter;
 import java.io.StringReader;
 
-import net.sf.saxon.tree.iter.NamespaceIterator;
+import net.sf.saxon.tree.util.NamespaceIterator;
 import org.xml.sax.InputSource;
 
 /**
@@ -145,18 +144,21 @@ public class S9apiUtils {
     }
 
     public static void serialize(XProcRuntime xproc, XdmNode node, Serializer serializer) throws SaxonApiException {
-        Processor qtproc = xproc.getProcessor();
-        XQueryCompiler xqcomp = qtproc.newXQueryCompiler();
-        XQueryExecutable xqexec = xqcomp.compile(".");
-        XQueryEvaluator xqeval = xqexec.load();
-        xqeval.setContextItem(node);
-        xqeval.setDestination(serializer);
-        xqeval.run();
+        Vector<XdmNode> nodes = new Vector<XdmNode> ();
+        nodes.add(node);
+        serialize(xproc, nodes, serializer);
     }
 
     public static void serialize(XProcRuntime xproc, Vector<XdmNode> nodes, Serializer serializer) throws SaxonApiException {
         Processor qtproc = xproc.getProcessor();
         XQueryCompiler xqcomp = qtproc.newXQueryCompiler();
+
+        // Patch suggested by oXygen to avoid errors that result from attempting to serialize
+        // a schema-valid document with a schema-naive query
+        xqcomp.getUnderlyingStaticContext().setSchemaAware(
+                xqcomp.getProcessor().getUnderlyingConfiguration().isLicensedFeature(
+                        Configuration.LicenseFeature.ENTERPRISE_XQUERY));
+
         XQueryExecutable xqexec = xqcomp.compile(".");
         XQueryEvaluator xqeval = xqexec.load();
         xqeval.setDestination(serializer);
@@ -201,54 +203,102 @@ public class S9apiUtils {
         StringReader sr = new StringReader(serxml);
         InputSource isource = new InputSource(sr);
         isource.setSystemId(node.getBaseURI().toASCIIString());
-        //SAXSource source = new SAXSource(isource);
-        //return source;
         return isource;
     }
 
-    public static XdmNode removeNamespaces(XProcRuntime runtime, XdmNode node, HashSet<String> excludeNS) {
-        return removeNamespaces(runtime.getProcessor(), node, excludeNS);
+    public static HashSet<String> excludeInlinePrefixes(XdmNode node, String prefixList) {
+        HashSet<String> excludeURIs = new HashSet<String> ();
+        excludeURIs.add(XProcConstants.NS_XPROC);
+
+        if (prefixList != null) {
+            NodeInfo inode = node.getUnderlyingNode();
+            InscopeNamespaceResolver inscopeNS = new InscopeNamespaceResolver(inode);
+            boolean all = false;
+
+            for (String pfx : prefixList.split("\\s+")) {
+                boolean found = false;
+
+                if ("#all".equals(pfx)) {
+                    found = true;
+                    all = true;
+                } else if ("#default".equals(pfx)) {
+                    found = (inscopeNS.getURIForPrefix("", true) != null);
+                    if (found) {
+                        excludeURIs.add(inscopeNS.getURIForPrefix("", true));
+                    }
+                } else {
+                    found = (inscopeNS.getURIForPrefix(pfx, false) != null);
+                    if (found) {
+                        excludeURIs.add(inscopeNS.getURIForPrefix(pfx, false));
+                    }
+                }
+
+                if (!found) {
+                    throw new XProcException(XProcConstants.staticError(57), node, "No binding for '" + pfx + ":'");
+                }
+            }
+
+            if (all) {
+                Iterator<String> pfxiter = inscopeNS.iteratePrefixes();
+                while (pfxiter.hasNext()) {
+                    String pfx = pfxiter.next();
+                    boolean def = ("".equals(pfx));
+                    excludeURIs.add(inscopeNS.getURIForPrefix(pfx,def));
+                }
+            }
+        }
+
+        return excludeURIs;
     }
 
-    public static XdmNode removeNamespaces(Processor proc, XdmNode node, HashSet<String> excludeNS) {
+    public static XdmNode removeNamespaces(XProcRuntime runtime, XdmNode node, HashSet<String> excludeNS, boolean preserveUsed) {
+        return removeNamespaces(runtime.getProcessor(), node, excludeNS, preserveUsed);
+    }
+
+    public static XdmNode removeNamespaces(Processor proc, XdmNode node, HashSet<String> excludeNS, boolean preserveUsed) {
         TreeWriter tree = new TreeWriter(proc);
         tree.startDocument(node.getBaseURI());
-        removeNamespacesWriter(tree, node, excludeNS);
+        removeNamespacesWriter(tree, node, excludeNS, preserveUsed);
         tree.endDocument();
         return tree.getResult();
     }
 
-    private static void removeNamespacesWriter(TreeWriter tree, XdmNode node, HashSet<String> excludeNS) {
+    private static void removeNamespacesWriter(TreeWriter tree, XdmNode node, HashSet<String> excludeNS, boolean preserveUsed) {
         if (node.getNodeKind() == XdmNodeKind.DOCUMENT) {
             XdmSequenceIterator iter = node.axisIterator(Axis.CHILD);
             while (iter.hasNext()) {
                 XdmNode cnode = (XdmNode) iter.next();
-                removeNamespacesWriter(tree, cnode, excludeNS);
+                removeNamespacesWriter(tree, cnode, excludeNS, preserveUsed);
             }
         } else if (node.getNodeKind() == XdmNodeKind.ELEMENT) {
             boolean usesDefaultNS = ("".equals(node.getNodeName().getPrefix())
                                      && !"".equals(node.getNodeName().getNamespaceURI()));
 
             NodeInfo inode = node.getUnderlyingNode();
-            NamePool pool = inode.getNamePool();
-            int inscopeNS[] = NamespaceIterator.getInScopeNamespaceCodes(inode);
+            int nscount = 0;
+            Iterator<NamespaceBinding> nsiter = NamespaceIterator.iterateNamespaces(inode);
+            while (nsiter.hasNext()) {
+                nscount++;
+                nsiter.next();
+            }
 
             boolean excludeDefault = false;
             boolean changed = false;
-            int newNS[] = null;
-            if (inscopeNS.length > 0) {
-                newNS = new int[inscopeNS.length];
+            NamespaceBinding newNS[] = null;
+            if (nscount > 0) {
+                newNS = new NamespaceBinding[nscount];
                 int newpos = 0;
-                for (int pos = 0; pos < inscopeNS.length; pos++) {
-                    int ns = inscopeNS[pos];
-                    String pfx = pool.getPrefixFromNamespaceCode(ns);
-                    String uri = pool.getURIFromNamespaceCode(ns);
+                nsiter = NamespaceIterator.iterateNamespaces(inode);
+                while (nsiter.hasNext()) {
+                    NamespaceBinding ns = nsiter.next();
+                    String pfx = ns.getPrefix();
+                    String uri = ns.getURI();
 
                     boolean delete = excludeNS.contains(uri);
                     excludeDefault = excludeDefault || ("".equals(pfx) && delete);
 
                     // You can't exclude the default namespace if it's in use
-                    if ("".equals(pfx) && usesDefaultNS) {
+                    if ("".equals(pfx) && usesDefaultNS && preserveUsed) {
                         delete = false;
                     }
 
@@ -258,31 +308,43 @@ public class S9apiUtils {
                         newNS[newpos++] = ns;
                     }
                 }
-                int onlyNewNS[] = new int[newpos];
+                NamespaceBinding onlyNewNS[] = new NamespaceBinding[newpos];
                 for (int pos = 0; pos < newpos; pos++) {
                     onlyNewNS[pos] = newNS[pos];
                 }
                 newNS = onlyNewNS;
             }
 
-            // Careful, we're messing with the namespace bindings
-            // Make sure the nameCode is right...
-            int nameCode = inode.getNameCode();
-            int typeCode = inode.getTypeAnnotation() & NamePool.FP_MASK;
-            String pfx = pool.getPrefix(nameCode);
-            String uri = pool.getURI(nameCode);
-
-            if (excludeDefault && "".equals(pfx) && !usesDefaultNS) {
-                nameCode = pool.allocate("", "", pool.getLocalName(nameCode));
+            NodeName newName = new NameOfNode(inode);
+            if (!preserveUsed) {
+                NamespaceBinding binding = newName.getNamespaceBinding();
+                if (excludeNS.contains(binding.getURI())) {
+                    newName = new FingerprintedQName("", "", newName.getLocalPart());
+                }
             }
 
-            tree.addStartElement(nameCode, typeCode, newNS);
-            tree.addAttributes(node);
+            tree.addStartElement(newName, inode.getSchemaType(), newNS);
+
+            if (!preserveUsed) {
+                // In this case, we may need to change some attributes too
+                XdmSequenceIterator attriter = node.axisIterator(Axis.ATTRIBUTE);
+                while (attriter.hasNext()) {
+                    XdmNode attr = (XdmNode) attriter.next();
+                    String attrns = attr.getNodeName().getNamespaceURI();
+                    if (excludeNS.contains(attrns)) {
+                        tree.addAttribute(new QName(attr.getNodeName().getLocalName()), attr.getStringValue());
+                    } else {
+                        tree.addAttribute(attr);
+                    }
+                }
+            } else {
+                tree.addAttributes(node);
+            }
 
             XdmSequenceIterator iter = node.axisIterator(Axis.CHILD);
             while (iter.hasNext()) {
                 XdmNode cnode = (XdmNode) iter.next();
-                removeNamespacesWriter(tree, cnode, excludeNS);
+                removeNamespacesWriter(tree, cnode, excludeNS, preserveUsed);
             }
             tree.addEndElement();
         } else {

@@ -25,7 +25,10 @@ import java.util.Vector;
 public class ParseArgs {
     public boolean debugExplicit = false;
     public boolean debug = false;
+    public boolean showVersion = false;
 
+    public String saxonProcessor = null;
+    public String saxonConfigFile = null;
     public boolean schemaAwareExplicit = false;
     public boolean schemaAware = false;
 
@@ -64,6 +67,19 @@ public class ParseArgs {
         while (arg != null || argpos < args.length) {
             if (arg == null) {
                 arg = args[argpos];
+            }
+
+            if (arg.startsWith("-P") || arg.startsWith("--saxon-processor")) {
+                saxonProcessor = parseString("P","saxon-processor");
+                if ( !("he".equals(saxonProcessor) || "pe".equals(saxonProcessor) || "ee".equals(saxonProcessor)) ) {
+                    throw new XProcException("Invalid Saxon processor option: " + saxonProcessor + ". Must be 'he', 'pe', or 'ee'.");
+                }
+                continue;
+            }
+
+            if (arg.startsWith("--saxon-configuration")) {
+                saxonConfigFile = parseString(null, "saxon-configuration");
+                continue;
             }
 
             if (arg.startsWith("-a") || arg.startsWith("--schema-aware")) {
@@ -135,6 +151,10 @@ public class ParseArgs {
                 continue;
             }
 
+            if (arg.startsWith("-v") || arg.equals("--version")) {
+                showVersion = parseBoolean("v","version");
+                continue;
+            }
 
             if (arg.startsWith("-s") || arg.startsWith("--step")) {
                 stepName = parseQName("s","step");
@@ -433,22 +453,25 @@ public class ParseArgs {
     }
 
     private String parseString(String shortName, String longName) {
-        String sOpt = "-" + shortName;
-        String lOpt = "--" + longName;
         String value = null;
 
-        if (arg.startsWith(sOpt)) {
-            if (arg.equals(sOpt)) {
-                value = args[++argpos];
-                arg = null;
-                argpos++;
-            } else {
-                value = arg.substring(2);
-                arg = null;
-                argpos++;
+        if (shortName != null) {
+            String sOpt = "-" + shortName;
+            if (arg.startsWith(sOpt)) {
+                if (arg.equals(sOpt)) {
+                    value = args[++argpos];
+                    arg = null;
+                    argpos++;
+                } else {
+                    value = arg.substring(2);
+                    arg = null;
+                    argpos++;
+                }
+                return value;
             }
-            return value;
         }
+
+        String lOpt = "--" + longName;
 
         if (arg.equals(lOpt)) {
             value = args[++argpos];
