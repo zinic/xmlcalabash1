@@ -1,101 +1,101 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+   <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.xmlcalabash</groupId>
-        <artifactId>parent</artifactId>
-        <version>0.9.40</version>
-    </parent>
+   <parent>
+      <groupId>com.xmlcalabash</groupId>
+      <artifactId>parent</artifactId>
+      <version>1.0.2-94</version>
+   </parent>
 
-    <groupId>com.xmlcalabash</groupId>
-    <artifactId>calabash</artifactId>
-    
-    <packaging>jar</packaging>
+   <groupId>com.xmlcalabash</groupId>
+   <artifactId>calabash</artifactId>
 
-    <name>Calabash - Core Library</name>
-    <url>http://xmlcalabash.com/</url>
+   <packaging>jar</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-        </dependency>
-            
-        <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-        </dependency>
-            
-        <dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-        </dependency>
+   <name>Calabash - Core Library</name>
+   <url>http://xmlcalabash.com/</url>
 
-        <dependency>
-            <groupId>commons-httpclient</groupId>
-            <artifactId>commons-httpclient</artifactId>
-        </dependency>
+   <dependencies>
+      <dependency>
+         <groupId>commons-codec</groupId>
+         <artifactId>commons-codec</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>nu.validator.htmlparser</groupId>
-            <artifactId>htmlparser</artifactId>
-        </dependency>
+      <dependency>
+         <groupId>commons-lang</groupId>
+         <artifactId>commons-lang</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>isorelax</groupId>
-            <artifactId>isorelax</artifactId>
-        </dependency>
+      <dependency>
+         <groupId>commons-logging</groupId>
+         <artifactId>commons-logging</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>net.java.dev.msv</groupId>
-            <artifactId>msv-core</artifactId>
-        </dependency>
-            
-        <dependency>
-            <groupId>net.sf.saxon</groupId>
-            <artifactId>saxon</artifactId>
-        </dependency>
-            
-        <dependency>
-            <groupId>org.ccil.cowan.tagsoup</groupId>
-            <artifactId>tagsoup</artifactId>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.thaiopensource</groupId>
-            <artifactId>jing</artifactId>
-        </dependency>
+      <dependency>
+         <groupId>commons-httpclient</groupId>
+         <artifactId>commons-httpclient</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>com.kenai.nbpwr</groupId>
-            <artifactId>com-drew-metadata</artifactId>
-        </dependency>
+      <dependency>
+         <groupId>nu.validator.htmlparser</groupId>
+         <artifactId>htmlparser</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>xmlunit</groupId>
-            <artifactId>xmlunit</artifactId>
-        </dependency>
+      <dependency>
+         <groupId>isorelax</groupId>
+         <artifactId>isorelax</artifactId>
+      </dependency>
 
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-        </dependency>
-    </dependencies>
+      <dependency>
+         <groupId>net.java.dev.msv</groupId>
+         <artifactId>msv-core</artifactId>
+      </dependency>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
+      <dependency>
+         <groupId>net.sf.saxon</groupId>
+         <artifactId>saxon-ee</artifactId>
+      </dependency>
 
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+      <dependency>
+         <groupId>org.ccil.cowan.tagsoup</groupId>
+         <artifactId>tagsoup</artifactId>
+      </dependency>
+
+      <dependency>
+         <groupId>com.thaiopensource</groupId>
+         <artifactId>jing</artifactId>
+      </dependency>
+
+      <dependency>
+         <groupId>com.kenai.nbpwr</groupId>
+         <artifactId>com-drew-metadata</artifactId>
+      </dependency>
+
+      <dependency>
+         <groupId>xmlunit</groupId>
+         <artifactId>xmlunit</artifactId>
+      </dependency>
+
+      <dependency>
+         <groupId>junit</groupId>
+         <artifactId>junit</artifactId>
+      </dependency>
+   </dependencies>
+
+   <build>
+      <plugins>
+         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>2.3.2</version>
+
+            <configuration>
+               <source>1.6</source>
+               <target>1.6</target>
+            </configuration>
+         </plugin>
+      </plugins>
+   </build>
 </project>
 
